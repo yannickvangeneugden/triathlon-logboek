@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Triathlon Logboek</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--ok:#15803d;--err:#b91c1c}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+main{max-width:680px;margin:auto;padding:18px 16px 100px}header{padding:8px 2px 18px}h1{font-size:26px;margin:0 0 5px}h2{font-size:19px;margin:0 0 12px}.sub{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #00000008}
+.session{display:flex;justify-content:space-between;gap:12px;align-items:center}.badge{font-size:12px;padding:5px 9px;border-radius:999px;background:#eef2ff}.planned{font-weight:700;font-size:17px}.meta{color:var(--muted);font-size:13px;margin-top:5px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
+label{font-size:12px;color:var(--muted);display:block;margin:0 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff;font:inherit}textarea{min-height:80px;resize:vertical}
+button{width:100%;border:0;border-radius:13px;padding:14px;font-weight:750;font-size:16px;background:var(--accent);color:#fff;cursor:pointer}.secondary{background:#eef2f7;color:var(--text)}
+.hidden{display:none!important}.success{color:var(--ok);font-weight:700}.error{color:var(--err);font-weight:700}.small{font-size:12px;color:var(--muted)}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:8px;display:flex;justify-content:center;gap:8px}.nav button{max-width:180px;padding:10px;font-size:14px}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Triathlon Logboek</h1><div class="sub">Je trainingen invullen in minder dan 1 minuut.</div></header>
+
+<section id="home">
+<div class="card"><h2>Vandaag</h2><div id="todaySession">Laden...</div></div>
+
+<div class="card">
+<h2>Training opslaan</h2>
+<form id="trainingForm">
+<div class="grid">
+<div><label>Datum</label><input id="dateInput" type="date" required></div>
+<div><label>Sport</label><select id="sportInput"><option>Fietsen</option><option>Zwemmen</option><option>Lopen</option><option>Kracht</option></select></div>
+<div class="full"><label>Trainingstype</label><input id="typeInput" placeholder="bv. Z2 fiets + core"></div>
+<div><label>Duur (min)</label><input id="durationInput" type="number" min="0" step="1"></div>
+<div><label>Afstand (km)</label><input id="distanceInput" type="number" min="0" step="0.1"></div>
+<div><label>Gem. HR</label><input id="hrInput" type="number" min="0"></div>
+<div><label>Gem. watt</label><input id="powerInput" type="number" min="0"></div>
+<div><label>Pace (min/km)</label><input id="paceInput" placeholder="bv. 5:45"></div>
+<div><label>/100m (min)</label><input id="swimPaceInput" placeholder="bv. 2:20"></div>
+<div><label>Cadans</label><input id="cadenceInput" type="number" min="0"></div>
+<div><label>RPE (1-10)</label><select id="rpeInput"><option value=""></option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></div>
+<div class="full"><label>Opmerking</label><textarea id="notesInput" placeholder="Hoe voelde de training?"></textarea></div>
+</div>
+<br>
+<button id="saveTrainingButton" type="submit">Training opslaan</button>
+</form>
+<p id="statusMessage" class="small"></p>
+</div>
+</section>
+
+<section id="planning" class="hidden"><div class="card"><h2>4-weken planning</h2><div id="plan"></div></div></section>
+
+<section id="settings" class="hidden">
+<div class="card">
+<h2>Google Sheets koppeling</h2>
+<p class="small">Plak hier de Web App URL van Google Apps Script. Die eindigt op <b>/exec</b>.</p>
+<label>Google Apps Script URL</label>
+<input id="endpointInput" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+<br><br>
+<button id="saveEndpointButton" type="button">Koppeling opslaan</button>
+<p id="endpointStatus" class="small"></p>
+</div>
+</section>
+</main>
+
+<div class="nav">
+<button class="secondary" type="button" onclick="showSection('home')">Vandaag</button>
+<button class="secondary" type="button" onclick="showSection('planning')">Planning</button>
+<button class="secondary" type="button" onclick="showSection('settings')">Instellingen</button>
+</div>
+
+<script>
+const plan = [
+["Week 1","2026-09-28","Ma","Fietsen","Z2 + kracht","60' bike + 20' strength"],
+["Week 1","2026-09-29","Di","Zwemmen + lopen","Zwemmen + treadmill","45' + 25'"],
+["Week 1","2026-09-30","Wo","Fietsen","Intervals + kracht","60' bike + 20' strength"],
+["Week 1","2026-10-01","Do","Zwemmen","Zwemtraining","50'"],
+["Week 1","2026-10-02","Vr","Lopen + kracht","Intervals + kracht","40' run + 20' strength"],
+["Week 1","2026-10-03","Za","Rust","Rust",""],
+["Week 1","2026-10-04","Zo","Rust","Rust",""],
+["Week 2","2026-10-05","Ma","Fietsen + core","Z2 fiets + core","75' bike + 15' core"],
+["Week 2","2026-10-06","Di","Zwemmen + lopen","Zwemmen + rustig lopen","45' + 25'"],
+["Week 2","2026-10-07","Wo","Fietsen + kracht","Tempo + kracht","65' bike + 15' strength"],
+["Week 2","2026-10-08","Do","Zwemmen","Zwemtraining","50'"],
+["Week 2","2026-10-09","Vr","Lopen + kracht","Rustig lopen + kracht","40' + 25'"],
+["Week 2","2026-10-10","Za","Rust","Rust",""],
+["Week 2","2026-10-11","Zo","Rust","Rust",""],
+["Week 3","2026-10-12","Ma","Fietsen + core","Z2 fiets + core","80' + 10'"],
+["Week 3","2026-10-13","Di","Zwemmen + lopen","Zwemmen + rustig lopen","50' + 30'"],
+["Week 3","2026-10-14","Wo","Fietsen + kracht","Tempo + kracht","70' + 15'"],
+["Week 3","2026-10-15","Do","Zwemmen","Zwemtraining","55'"],
+["Week 3","2026-10-16","Vr","Lopen + kracht","Rustig lopen + kracht","40' + 20'"],
+["Week 3","2026-10-17","Za","Rust","Rust",""],
+["Week 3","2026-10-18","Zo","Rust","Rust",""],
+["Week 4","2026-10-19","Ma","Fietsen","Recovery/Z2 fiets","60'"],
+["Week 4","2026-10-20","Di","Zwemmen + lopen","Easy","45' + 25'"],
+["Week 4","2026-10-21","Wo","Fietsen","Easy bike","60'"],
+["Week 4","2026-10-22","Do","Zwemmen","Easy techniek/endurance","45'"],
+["Week 4","2026-10-23","Vr","Lopen + kracht","Easy","35' + 20'"],
+["Week 4","2026-10-24","Za","Rust","Rust",""],
+["Week 4","2026-10-25","Zo","Rust","Rust",""]
+];
+
+function showSection(id){
+  ["home","planning","settings"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id));
+}
+
+const dateInput=document.getElementById("dateInput");
+const typeInput=document.getElementById("typeInput");
+const endpointInput=document.getElementById("endpointInput");
+const statusMessage=document.getElementById("statusMessage");
+const endpointStatus=document.getElementById("endpointStatus");
+const form=document.getElementById("trainingForm");
+const saveButton=document.getElementById("saveTrainingButton");
+
+function localDate(){
+  const d=new Date();
+  const off=d.getTimezoneOffset();
+  return new Date(d.getTime()-off*60000).toISOString().slice(0,10);
+}
+
+dateInput.value=localDate();
+endpointInput.value=localStorage.getItem("tri_endpoint")||"";
+
+const today=localDate();
+const todaySession=document.getElementById("todaySession");
+const s=plan.find(x=>x[1]===today);
+
+todaySession.innerHTML=s
+? `<div class="session"><div><div class="planned">${s[4]}</div><div class="meta">${s[0]} · ${s[3]} · ${s[5]}</div></div><span class="badge">${s[1]}</span></div>`
+: `<div class="small">Geen geplande training voor vandaag.</div>`;
+
+if(s) typeInput.value=s[4];
+
+plan.forEach(x=>{
+  const d=document.createElement("div");
+  d.className="card";
+  d.innerHTML=`<div class="session"><div><b>${x[1]} · ${x[2]}</b><div class="meta">${x[3]} — ${x[4]} ${x[5]?"· "+x[5]:""}</div></div><span class="badge">${x[0]}</span></div>`;
+  document.getElementById("plan").appendChild(d);
+});
+
+document.getElementById("saveEndpointButton").addEventListener("click",()=>{
+  const url=endpointInput.value.trim();
+  if(!url || !url.endsWith("/exec")){
+    endpointStatus.textContent="Vul de volledige Web App URL in die eindigt op /exec.";
+    endpointStatus.className="error";
+    return;
+  }
+  localStorage.setItem("tri_endpoint",url);
+  endpointStatus.textContent="✅ Koppeling opgeslagen.";
+  endpointStatus.className="success";
+});
+
+form.addEventListener("submit",async(e)=>{
+  e.preventDefault();
+
+  const rpeVal=Number(document.getElementById("rpeInput").value||0);
+  const durationVal=Number(document.getElementById("durationInput").value||0);
+
+  const data={
+    datum:dateInput.value,
+    sport:document.getElementById("sportInput").value,
+    trainingstype:typeInput.value,
+    duur_min:durationVal,
+    afstand_km:Number(document.getElementById("distanceInput").value||0),
+    gem_hr:Number(document.getElementById("hrInput").value||0),
+    gem_watt:Number(document.getElementById("powerInput").value||0),
+    pace:document.getElementById("paceInput").value,
+    zwem_100m:document.getElementById("swimPaceInput").value,
+    cadans:Number(document.getElementById("cadenceInput").value||0),
+    rpe:rpeVal,
+    training_load:durationVal*rpeVal/10,
+    opmerking:document.getElementById("notesInput").value
+  };
+
+  const url=localStorage.getItem("tri_endpoint");
+
+  if(!url){
+    statusMessage.textContent="⚠️ Geen Google Apps Script URL ingesteld. Ga naar Instellingen.";
+    statusMessage.className="error";
+    return;
+  }
+
+  saveButton.disabled=true;
+  saveButton.textContent="Opslaan...";
+  statusMessage.textContent="Training wordt doorgestuurd...";
+  statusMessage.className="small";
+
+  try{
+    await fetch(url,{
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify(data)
+    });
+
+    statusMessage.textContent="✅ Training is verzonden naar Google Sheets. Controleer het tabblad Training Log.";
+    statusMessage.className="success";
+    form.reset();
+    dateInput.value=localDate();
+    if(s) typeInput.value=s[4];
+
+  }catch(err){
+    statusMessage.textContent="❌ Er ging iets mis bij het verzenden. Controleer de Apps Script URL.";
+    statusMessage.className="error";
+    console.error(err);
+  }finally{
+    saveButton.disabled=false;
+    saveButton.textContent="Training opslaan";
+  }
+});
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
