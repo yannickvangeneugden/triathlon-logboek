@@ -1,0 +1,8 @@
+{
+  "name": "Triathlon Logboek",
+  "short_name": "Triathlon",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#111827"
+}
