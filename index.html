@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Triathlon Logboek</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--ok:#15803d;--err:#b91c1c;--soft:#eef2f7}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+main{max-width:680px;margin:auto;padding:18px 16px 105px}header{padding:8px 2px 18px}h1{font-size:27px;margin:0 0 5px}h2{font-size:19px;margin:0 0 12px}.sub,.small{color:var(--muted);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #00000008}
+.session{display:flex;justify-content:space-between;gap:12px;align-items:center}.badge{font-size:12px;padding:5px 9px;border-radius:999px;background:#eef2ff}.planned{font-weight:750;font-size:18px}.meta{color:var(--muted);font-size:13px;margin-top:5px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
+label{font-size:12px;color:var(--muted);display:block;margin:0 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff;font:inherit}textarea{min-height:72px;resize:vertical}
+button{width:100%;border:0;border-radius:13px;padding:14px;font-weight:750;font-size:16px;background:var(--accent);color:#fff;cursor:pointer}.secondary{background:var(--soft);color:var(--text)}
+.hidden{display:none!important}.success{color:var(--ok);font-weight:700}.error{color:var(--err);font-weight:700}
+.quick{margin-top:12px}.readonly{background:#f8fafc;color:#374151}
+.upcoming-item{padding:12px 0;border-top:1px solid var(--line)}.upcoming-item:first-child{border-top:0}.up-title{font-weight:750}.up-meta{font-size:13px;color:var(--muted);margin-top:4px}.up-detail{font-size:13px;margin-top:7px}.nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:8px;display:flex;justify-content:center;gap:8px}.nav button{max-width:180px;padding:10px;font-size:14px}
+@media(max-width:480px){.grid{grid-template-columns:1fr}.full{grid-column:1}.session{align-items:flex-start}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Triathlon Logboek</h1><div class="sub">Na je training invullen in minder dan 1 minuut.</div></header>
+
+<section id="home">
+<div class="card"><h2>Vandaag</h2><div id="todaySession">Laden...</div><button id="useTodayButton" class="secondary quick hidden" type="button">Gebruik geplande training</button></div>
+
+<div class="card">
+<h2>Training registreren</h2>
+<form id="trainingForm">
+<div class="grid">
+<div><label>Datum</label><input id="dateInput" type="date" required></div>
+<div><label>Sport</label><select id="sportInput">
+<option value="Fietsen">🚴 Fietsen</option><option value="Zwemmen">🏊 Zwemmen</option><option value="Lopen">🏃 Lopen</option><option value="Kracht">🏋️ Kracht</option>
+</select></div>
+<div class="full"><label>Geplande training</label><input id="typeInput" class="readonly" readonly></div>
+
+<div><label>Duur (min)</label><input id="durationInput" type="number" min="0" step="1" inputmode="numeric"></div>
+<div class="sport-distance"><label id="distanceLabel">Afstand (km)</label><input id="distanceInput" type="number" min="0" step="0.01" inputmode="decimal"></div>
+
+<div class="sport-common"><label>Gem. HR</label><input id="hrInput" type="number" min="0" inputmode="numeric"></div>
+<div class="bike-only"><label>Gem. watt</label><input id="powerInput" type="number" min="0" inputmode="numeric"></div>
+<div class="run-only"><label>Pace (min/km)</label><input id="paceInput" placeholder="bv. 5:45"></div>
+<div class="swim-only"><label>/100m (min)</label><input id="swimPaceInput" placeholder="bv. 2:20"></div>
+<div class="bike-only"><label>Cadans</label><input id="cadenceInput" type="number" min="0" inputmode="numeric"></div>
+
+<div><label>RPE (1-10)</label><select id="rpeInput"><option value="">Kies</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></div>
+<div class="full"><label>Opmerking</label><textarea id="notesInput" placeholder="Optioneel: hoe voelde de training?"></textarea></div>
+</div>
+<br>
+<button id="saveTrainingButton" type="submit">Training opslaan</button>
+</form>
+<p id="statusMessage" class="small"></p>
+</div>
+</section>
+
+<section id="planning" class="hidden"><div class="card"><h2>4-weken planning</h2><div id="plan"></div></div></section>
+
+<section id="settings" class="hidden"><div class="card"><h2>Google Sheets koppeling</h2>
+<p class="small">Web App URL van Google Apps Script, eindigend op <b>/exec</b>.</p>
+<label>Google Apps Script URL</label><input id="endpointInput" type="url">
+<br><br><button id="saveEndpointButton" type="button">Koppeling opslaan</button><p id="endpointStatus" class="small"></p>
+</div></section>
+</main>
+
+<div class="nav">
+<button class="secondary" type="button" data-section="home">Vandaag</button>
+<button class="secondary" type="button" data-section="planning">Planning</button>
+<button class="secondary" type="button" data-section="settings">Instellingen</button>
+</div>
+
+<script>
+const plan=[["Week 1","2026-09-28","Maandag","Fietsen","Z2 + kracht","60' fiets + 20' kracht","Z2 / RPE 2–4","MyWhoosh – vlak/rolling","Aerobe basis opbouwen met rustige fiets + kracht",["🚴 60 min fietsen — Z2, RPE 2–4","🏋️ 20 min kracht"]],["Week 1","2026-09-29","Dinsdag","Zwemmen + lopen","Zwemmen + treadmill","45' + 25'","Zwem techniek/duur + rustig lopen","","Crawl-techniek en aerobe duur verbeteren",["🏊 10 min rustig inzwemmen","🏊 4×50 m crawl techniek — 20–30" rust","🏊 6×100 m rustig/constant — 20–30" rust","🏊 5 min uitzwemmen","🏃 25 min rustig lopen — praattempo"]],["Week 1","2026-09-30","Woensdag","Fietsen + kracht","Intervals + kracht","60' fiets + 20' kracht","15' easy + 4×5' hard / 3' easy + cooldown","MyWhoosh – vlak/rolling","Eerste kwaliteitsprikkel op de fiets + kracht",["🚴 15 min easy","🔥 4×5 min hard","🚴 3 min easy herstel tussen de blokken","🚴 cooldown binnen totaal 60 min","🏋️ 20 min kracht"]],["Week 1","2026-10-01","Donderdag","Zwemmen","Zwemtraining","50'","Techniek/duur","","Crawl-efficiëntie en rustige zwemduur verbeteren",["🏊 10 min rustig inzwemmen","🏊 6×50 m techniek — focus op lange slag","🏊 8×100 m rustig/constant — 20–30" rust","🏊 5 min uitzwemmen"]],["Week 1","2026-10-02","Vrijdag","Lopen + kracht","Intervals + kracht","40' lopen + 20' kracht","5' easy + 4×(4' @12,5–13 km/u + 3' @10 km/u) + 5' easy","","Looptempo prikkelen met gecontroleerde intervallen",["🏃 5 min easy","🔥 4×(4 min @12,5–13 km/u + 3 min @10 km/u)","🏃 5 min easy — totaal 40 min","🏋️ 20 min kracht"]],["Week 1","2026-10-03","Zaterdag","Rust","Rustdag","—","Herstel","","Herstellen en trainingsprikkel verwerken",["😴 Rustdag"]],["Week 1","2026-10-04","Zondag","Rust","Rustdag","—","Herstel","","Herstellen en klaar zijn voor week 2",["😴 Rustdag"]],["Week 2","2026-10-05","Maandag","Fietsen + core","Z2 fiets + core","75' fiets + 15' core","Z2 / RPE 2–4","MyWhoosh – vlak/rolling","Meer rustige fietstijd opbouwen + romp versterken",["🚴 75 min fietsen — Z2, RPE 2–4","🧘 15 min core"]],["Week 2","2026-10-06","Dinsdag","Zwemmen + lopen","Zwemmen + rustig lopen","45' + 25'","Zwem techniek/duur + rustig","","Techniek en zwemduur onderhouden + rustige loop",["🏊 10 min rustig inzwemmen","🏊 4×50 m crawl techniek — 20–30" rust","🏊 6×100 m rustig/constant — 20–30" rust","🏊 5 min uitzwemmen","🏃 25 min rustig lopen — praattempo"]],["Week 2","2026-10-07","Woensdag","Fietsen + kracht","Tempo + kracht","65' fiets + 15' kracht","5×5' tempo / RPE 6–7","MyWhoosh – vlak/rolling","Gecontroleerde tempobelasting opbouwen",["🚴 15 min rustig opwarmen","🔥 5×5 min tempo — RPE 6–7","🚴 rustig herstel tussen de blokken","🚴 uitrijden tot 65 min totaal","🏋️ 15 min kracht"]],["Week 2","2026-10-08","Donderdag","Zwemmen","Zwemtraining","50'","Techniek/duur","","Crawl-techniek en aerobe duur verder ontwikkelen",["🏊 10 min rustig inzwemmen","🏊 6×50 m techniek — focus op lange slag","🏊 8×100 m rustig/constant — 20–30" rust","🏊 5 min uitzwemmen"]],["Week 2","2026-10-09","Vrijdag","Lopen + kracht","Run + kracht","40' lopen + 25' kracht","Rustig / gecontroleerd","","Rustige loopduur opbouwen + kracht onderhouden",["🏃 40 min rustig/gecontroleerd lopen","🏋️ 25 min kracht"]],["Week 2","2026-10-10","Zaterdag","Rust","Rustdag","—","Herstel","","Herstel",["😴 Rustdag"]],["Week 2","2026-10-11","Zondag","Rust","Rustdag","—","Herstel","","Herstel en voorbereiding op week 3",["😴 Rustdag"]],["Week 3","2026-10-12","Maandag","Fietsen + core","Z2 fiets + core","80' fiets + 10' core","Z2 / RPE 2–4","MyWhoosh – vlak/rolling","Rustige fietsbasis verder uitbreiden",["🚴 80 min fietsen — Z2, RPE 2–4","🧘 10 min core"]],["Week 3","2026-10-13","Dinsdag","Zwemmen + lopen","Zwemmen + rustig lopen","50' + 30'","Zwem techniek/duur + rustig","","Zwemduur verhogen + rustige loopprikkel",["🏊 50 min zwemmen — techniek/duur","🏃 30 min rustig lopen"]],["Week 3","2026-10-14","Woensdag","Fietsen + kracht","Tempo + kracht","70' fiets + 15' kracht","4×7' tempo / RPE 6–7","MyWhoosh – vlak/rolling","Langere gecontroleerde tempoblokken volhouden",["🚴 15 min rustig opwarmen","🔥 4×7 min tempo — RPE 6–7","🚴 rustig herstel tussen de blokken","🚴 uitrijden tot 70 min totaal","🏋️ 15 min kracht"]],["Week 3","2026-10-15","Donderdag","Zwemmen","Zwemtraining","55'","Techniek/duur","","Zwemduur en crawl-efficiëntie verder opbouwen",["🏊 10 min rustig inzwemmen","🏊 8×50 m techniek","🏊 8×100 m aerobe duur — constant tempo","🏊 5 min uitzwemmen"]],["Week 3","2026-10-16","Vrijdag","Lopen + kracht","Run + kracht","40' lopen + 20' kracht","Rustig / gecontroleerd","","Rustige loopduur behouden zonder extra vermoeidheid",["🏃 40 min rustig/gecontroleerd lopen","🏋️ 20 min kracht"]],["Week 3","2026-10-17","Zaterdag","Rust","Rustdag","—","Herstel","","Herstel",["😴 Rustdag"]],["Week 3","2026-10-18","Zondag","Rust","Rustdag","—","Herstel","","Herstel en voorbereiding op herstelweek",["😴 Rustdag"]],["Week 4","2026-10-19","Maandag","Fietsen","Herstel/Z2 fiets","60'","Z1–Z2","MyWhoosh – vlak/rolling","Herstellen en aerobe basis onderhouden",["🚴 60 min zeer rustig — Z1–Z2"]],["Week 4","2026-10-20","Dinsdag","Zwemmen + lopen","Zwemmen + rustig lopen","45' + 25'","Rustig","","Actief herstel en techniek onderhouden",["🏊 10 min rustig inzwemmen","🏊 6×50 m techniek","🏊 8×100 m rustig","🏃 25 min zeer rustig lopen"]],["Week 4","2026-10-21","Woensdag","Fietsen","Rustige fiets","60'","Z1–Z2","MyWhoosh – vlak/rolling","Rustige aerobe prikkel zonder vermoeidheid",["🚴 60 min rustig — Z1–Z2"]],["Week 4","2026-10-22","Donderdag","Zwemmen","Zwemtraining","45'","Techniek/duur rustig","","Techniek onderhouden met lage belasting",["🏊 10 min rustig inzwemmen","🏊 6×50 m techniek","🏊 6×100 m rustig/constant","🏊 rustig uitzwemmen"]],["Week 4","2026-10-23","Vrijdag","Lopen + kracht","Rustige run + kracht","35' + 20' kracht","Rustig","","Herstelweek afsluiten met korte rustige loop + beperkte kracht",["🏃 35 min rustig lopen","🏋️ 20 min kracht"]],["Week 4","2026-10-24","Zaterdag","Rust","Rustdag","—","Herstel","","Herstel",["😴 Rustdag"]],["Week 4","2026-10-25","Zondag","Rust","Rustdag","—","Herstel","","Herstel en afronden van de 4-weekse cyclus",["😴 Rustdag"]]];
+
+const $=id=>document.getElementById(id);
+const form=$("trainingForm"), dateInput=$("dateInput"), sportInput=$("sportInput"), typeInput=$("typeInput");
+const statusMessage=$("statusMessage"), saveButton=$("saveTrainingButton"), endpointInput=$("endpointInput");
+
+function localDate(){const d=new Date(),off=d.getTimezoneOffset();return new Date(d.getTime()-off*60000).toISOString().slice(0,10)}
+function sessionFor(date){return plan.find(x=>x[1]===date)}
+function primarySport(text){
+  if(text.includes("Zwemmen")) return "Zwemmen";
+  if(text.includes("Fietsen")) return "Fietsen";
+  if(text.includes("Lopen")) return "Lopen";
+  return "Kracht";
+}
+function setVisible(sel,visible){document.querySelectorAll(sel).forEach(el=>el.classList.toggle("hidden",!visible))}
+function updateSportFields(){
+ const s=sportInput.value;
+ setVisible(".bike-only",s==="Fietsen"); setVisible(".run-only",s==="Lopen"); setVisible(".swim-only",s==="Zwemmen");
+ setVisible(".sport-distance",s!=="Kracht"); setVisible(".sport-common",s!=="Kracht");
+ $("distanceLabel").textContent=s==="Zwemmen"?"Afstand (km, bv. 1.50)":"Afstand (km)";
+}
+function applyPlan(date){
+ const s=sessionFor(date);
+ if(!s){typeInput.value="Vrije training"; return}
+ typeInput.value=s[4];
+ const ps=primarySport(s[3]);
+ if(s[3]!=="Rust") sportInput.value=ps;
+ updateSportFields();
+}
+function renderToday(){
+ const s=sessionFor(localDate()), box=$("todaySession"), btn=$("useTodayButton");
+ if(!s){box.innerHTML='<div class="small">Geen geplande training voor vandaag.</div>';btn.classList.add("hidden");return}
+ const blocks=s[9].map(b=>`<div class="meta" style="margin-top:7px">${b}</div>`).join("");
+ box.innerHTML=`<div class="session"><div><div class="planned">${s[4]}</div><div class="meta">${s[0]} · ${s[3]} · ${s[5]}</div></div><span class="badge">${s[2]}</span></div>
+ <div class="card" style="margin:12px 0 0;padding:12px;background:#f8fafc">
+ <b>🎯 Doel van vandaag</b><div class="meta" style="margin-top:6px">${s[8]}</div>
+ <div style="margin-top:12px"><b>⏱️ Vooropgesteld plan</b>${blocks}</div>
+ ${s[6]?`<div style="margin-top:12px"><b>Intensiteit</b><div class="meta">${s[6]}</div></div>`:""}
+ ${s[7]?`<div style="margin-top:10px"><b>Locatie</b><div class="meta">${s[7]}</div></div>`:""}
+ </div>`;
+ if(s[3]!=="Rust") btn.classList.remove("hidden"); else btn.classList.add("hidden");
+}
+
+function addDays(dateString, n){
+ const d=new Date(dateString+"T12:00:00");
+ d.setDate(d.getDate()+n);
+ return d.toISOString().slice(0,10);
+}
+function prettyDate(ds){
+ const d=new Date(ds+"T12:00:00");
+ return d.toLocaleDateString("nl-BE",{weekday:"long",day:"numeric",month:"long"});
+}
+function renderTomorrow(){
+ const tomorrow=addDays(localDate(),1), s=sessionFor(tomorrow), box=$("tomorrowSession");
+ if(!s){box.innerHTML='<div class="small">Geen geplande training.</div>';return}
+ const blocks=s[9].map(b=>`<div class="meta" style="margin-top:6px">${b}</div>`).join("");
+ box.innerHTML=`<div class="session"><div><div class="planned">${s[4]}</div><div class="meta">${prettyDate(tomorrow)} · ${s[3]}</div></div><span class="badge">${s[5]}</span></div>
+ <div style="margin-top:12px"><b>🎯 Doel</b><div class="meta" style="margin-top:5px">${s[8]}</div></div>
+ <div style="margin-top:11px"><b>⏱️ Wat staat er op het programma?</b>${blocks}</div>
+ ${s[6]?`<div style="margin-top:10px"><b>Intensiteit:</b> <span class="meta">${s[6]}</span></div>`:""}
+ ${s[7]?`<div style="margin-top:6px"><b>Locatie:</b> <span class="meta">${s[7]}</span></div>`:""}`;
+}
+function renderUpcoming(){
+ const box=$("upcomingSessions"), today=localDate();
+ const items=plan.filter(x=>x[1]>today).slice(0,7);
+ if(!items.length){box.innerHTML='<div class="small">Geen komende trainingen in de planning.</div>';return}
+ box.innerHTML=items.map(s=>`
+ <div class="upcoming-item">
+  <div class="up-title">${prettyDate(s[1])} · ${s[4]}</div>
+  <div class="up-meta">${s[3]} · ${s[5]}</div>
+  <div class="up-detail">🎯 ${s[8]}</div>
+  <div class="up-detail">${s[9].join(" · ")}</div>
+  ${s[6]?`<div class="up-meta">Intensiteit: ${s[6]}</div>`:""}
+ </div>`).join("");
+}
+function showSection(id){["home","planning","settings"].forEach(x=>$(x).classList.toggle("hidden",x!==id))}
+document.querySelectorAll("[data-section]").forEach(b=>b.addEventListener("click",()=>showSection(b.dataset.section)));
+
+dateInput.value=localDate(); endpointInput.value=localStorage.getItem("tri_endpoint")||"";
+renderToday(); renderTomorrow(); renderUpcoming(); applyPlan(dateInput.value); updateSportFields();
+dateInput.addEventListener("change",()=>applyPlan(dateInput.value));
+sportInput.addEventListener("change",updateSportFields);
+$("useTodayButton").addEventListener("click",()=>{dateInput.value=localDate();applyPlan(dateInput.value);window.scrollTo({top:300,behavior:"smooth"})});
+
+plan.forEach(x=>{const d=document.createElement("div");d.className="card";d.innerHTML=`<div class="session"><div><b>${x[1]} · ${x[2]}</b><div class="meta">${x[3]} — ${x[4]} · ${x[5]}</div></div><span class="badge">${x[0]}</span></div><div class="meta" style="margin-top:8px"><b>Doel:</b> ${x[8]}</div><div class="meta" style="margin-top:6px"><b>Plan:</b> ${x[9].join(" · ")}</div>${x[6]?`<div class="meta" style="margin-top:6px"><b>Intensiteit:</b> ${x[6]}</div>`:""}${x[7]?`<div class="meta" style="margin-top:6px"><b>Locatie:</b> ${x[7]}</div>`:""}`;$("plan").appendChild(d)});
+
+$("saveEndpointButton").addEventListener("click",()=>{
+ const url=endpointInput.value.trim(), st=$("endpointStatus");
+ if(!url||!url.endsWith("/exec")){st.textContent="Vul de volledige URL in die eindigt op /exec.";st.className="error";return}
+ localStorage.setItem("tri_endpoint",url);st.textContent="✅ Koppeling opgeslagen.";st.className="success";
+});
+
+form.addEventListener("submit",async e=>{
+ e.preventDefault();
+ const rpe=Number($("rpeInput").value||0),duur=Number($("durationInput").value||0),sport=sportInput.value;
+ const data={datum:dateInput.value,sport,trainingstype:typeInput.value,duur_min:duur,
+ afstand_km:sport==="Kracht"?"":Number($("distanceInput").value||0),
+ gem_hr:sport==="Kracht"?"":Number($("hrInput").value||0),
+ gem_watt:sport==="Fietsen"?Number($("powerInput").value||0):"",
+ pace:sport==="Lopen"?$("paceInput").value:"",
+ zwem_100m:sport==="Zwemmen"?$("swimPaceInput").value:"",
+ cadans:sport==="Fietsen"?Number($("cadenceInput").value||0):"",
+ rpe,training_load:duur*rpe/10,opmerking:$("notesInput").value};
+ const url=localStorage.getItem("tri_endpoint");
+ if(!url){statusMessage.textContent="⚠️ Stel eerst de Google Apps Script URL in bij Instellingen.";statusMessage.className="error";return}
+ saveButton.disabled=true;saveButton.textContent="Opslaan…";statusMessage.textContent="Training wordt doorgestuurd…";statusMessage.className="small";
+ try{
+  await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(data)});
+  statusMessage.textContent="✅ Training verzonden naar Google Sheets.";statusMessage.className="success";
+  const keepDate=dateInput.value; form.reset(); dateInput.value=keepDate; applyPlan(keepDate); updateSportFields();
+ }catch(err){statusMessage.textContent="❌ Verzenden mislukt. Controleer de koppeling.";statusMessage.className="error"}
+ finally{saveButton.disabled=false;saveButton.textContent="Training opslaan"}
+});
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body></html>
